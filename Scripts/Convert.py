@@ -112,7 +112,8 @@ class RuleSet:
 
 # 处理规则类型
 def process_type(rule):
-    if rule.type.upper() not in RULE_TYPE_MAPPING:
+    if rule.type.upper() in RULE_TYPE_MAPPING:
+    else:
         try:
             rule_cidr = ipaddress.ip_network(rule.type, strict=False)
             rule.value = str(rule_cidr)
@@ -134,9 +135,8 @@ def process_order(rules):
     for rule in rules:
         rule_dedup.setdefault((rule.type, rule.value.lower()), rule)
     type_order = {}
-    for rule_type, platform_type in RULE_TYPE_MAPPING.items():
-        if platform_type:
-            type_order[rule_type] = len(type_order)
+    for rule_type in RULE_TYPE_MAPPING:
+        type_order[rule_type] = len(type_order)
     rule_order = sorted(
         rule_dedup.values(),
         key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
