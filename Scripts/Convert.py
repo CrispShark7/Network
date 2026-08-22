@@ -12,7 +12,7 @@ from pathlib import Path
 STASH_DOMAIN_FILE = {"AdBlock", "Advertising", "DIRECT", "PROXY", "REJECT"}
 STASH_IPCIDR_FILE = {"CNCIDR", "ChinaIP", "ChinaIPv4", "ChinaIPv6"}
 
-EGERN_QUOTED_TYPE = {"IP-ASN", "DOMAIN-WILDCARD"}
+EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
 COMMENT_PATTERN = re.compile(r"(?<!:)//.*$")
 DELIMIT_PATTERN = re.compile(r"\s*,\s*")
@@ -112,8 +112,7 @@ class RuleSet:
 
 # 处理规则类型
 def process_type(rule):
-    if rule.type.upper() in RULE_TYPE_MAPPING:
-    else:
+    if rule.type.upper() not in RULE_TYPE_MAPPING:
         try:
             rule_cidr = ipaddress.ip_network(rule.type, strict=False)
             rule.value = str(rule_cidr)
@@ -142,15 +141,15 @@ def process_order(rules):
         key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
     return rule_order
 
-# 处理排除规则类型
-def process_exclude(rule):
-    exclude_type = {
+# 排除规则类型
+def exclude_type(rule):
+    exclude = {
         "USER-AGENT",
         "URL-REGEX",
         "PROTOCOL",
         "PROCESS-NAME"
     }
-    return rule.type in exclude_type
+    return rule.type in exclude
 
 # 读取规则内容
 def process_read(file_path, enable_type=False, enable_param=False, enable_order=False, enable_exclude=False):
@@ -166,7 +165,7 @@ def process_read(file_path, enable_type=False, enable_param=False, enable_order=
                 rule = process_type(rule)
             if enable_param:
                 rule = process_param(rule)
-            if enable_exclude and process_exclude(rule):
+            if enable_exclude and exclude_type(rule):
                 continue
             rules.append(rule)
     if enable_order:
