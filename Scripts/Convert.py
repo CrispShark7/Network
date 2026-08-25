@@ -14,6 +14,8 @@ STASH_IPCIDR_FILE = {"CNCIDR", "ChinaIP", "ChinaIPv4", "ChinaIPv6"}
 
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
+EXCLUDE_RULE_TYPE = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
+
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
         "Egern": "domain_set",
@@ -98,7 +100,7 @@ class Rule:
     value: str
     param: str = ""
 
-# 规则集数据结构
+# 规则数据结构
 @dataclasses.dataclass(slots=True)
 class RuleSet:
     name: str
@@ -109,7 +111,7 @@ class RuleSet:
 
 # 处理规则类型
 def process_type(rule):
-    if rule.type.upper() in RULE_TYPE_MAPPING:
+    if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
         return rule
     try:
         rule_cidr = ipaddress.ip_network(rule.type, strict=False)
@@ -138,10 +140,6 @@ def process_order(rules):
         rule_dedup.values(),
         key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
 
-# 排除规则类型
-def exclude_type(rule):
-    return rule.type in {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
-
 # 解析规则集
 def parse_ruleset(file_path, args):
     rules = []
@@ -155,7 +153,7 @@ def parse_ruleset(file_path, args):
                 rule = process_type(rule)
             if args.param:
                 rule = process_param(rule)
-            if args.exclude and exclude_type(rule):
+            if args.exclude and rule.type in EXCLUDE_RULE_TYPE:
                 continue
             rules.append(rule)
     if args.order:
