@@ -142,8 +142,8 @@ def parse_ruleset(file_path, args):
     rules = []
     with file_path.open("r", encoding="utf-8") as file:
         for line in file:
-            line = re.sub(r"(?<!:)//.*$|#.*$", "", line)
-            if not line.strip():
+            line = re.sub(r"(?<!:)//.*$|#.*$", "", line).strip()
+            if not line:
                 continue
             rule = Rule(*map(str.strip, (line.split(",", 2) + ["", ""])[:3]))
             if args.type:
