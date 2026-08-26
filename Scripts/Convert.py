@@ -9,9 +9,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-STASH_DOMAIN_FILE = {"AdBlock", "Advertising", "DIRECT", "PROXY", "REJECT"}
-STASH_IPCIDR_FILE = {"CNCIDR", "ChinaIP", "ChinaIPv4", "ChinaIPv6"}
-
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
 EXCLUDE_RULE_TYPE = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
@@ -206,13 +203,13 @@ def convert_rule(ruleset, platform):
         output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
         return output
     if platform == "Stash":
-        output = ["payload:"]
-        if ruleset.name in STASH_DOMAIN_FILE:
+        output, ruleset_types = ["payload:"], {rule.type for rule in ruleset.rules}
+        if ruleset.total >= 5000 and ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
             for rule in ruleset.rules:
                 rule_value = f"+.{rule.value}" if rule.type == "DOMAIN-SUFFIX" else rule.value
                 output.append(f"  - '{rule_value}'")
             return output
-        if ruleset.name in STASH_IPCIDR_FILE:
+        if ruleset.total >= 5000 and ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
             for rule in ruleset.rules:
                 output.append(f"  - '{rule.value}'")
             return output
