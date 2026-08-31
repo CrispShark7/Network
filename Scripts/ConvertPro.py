@@ -244,12 +244,11 @@ def convert_rule(ruleset, target_platform):
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
         if platform_type := platforms.get(target_platform):
             type_mapping[rule_type] = platform_type
+    ruleset.rules = [rule for rule in ruleset.rules if rule.type in type_mapping]
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = type_mapping.get(rule.type)
-            if not rule_type:
-                continue
+            rule_type = type_mapping[rule.type]
             rule_value = f"'{rule.value}'" if rule.type in EGERN_QUOTED_TYPE else rule.value
             rule_dict[rule_type].append(rule_value)
         output = []
@@ -262,17 +261,13 @@ def convert_rule(ruleset, target_platform):
     if target_platform == "QuantumultX":
         output = []
         for rule in ruleset.rules:
-            rule_type = type_mapping.get(rule.type)
-            if not rule_type:
-                continue
+            rule_type = type_mapping[rule.type]
             output.append(f"{rule_type},{rule.value},{ruleset.name}")
         return output
     if target_platform == "Singbox":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = type_mapping.get(rule.type)
-            if not rule_type:
-                continue
+            rule_type = type_mapping[rule.type]
             rule_dict[rule_type].append(rule.value)
         output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
         return output
@@ -288,18 +283,14 @@ def convert_rule(ruleset, target_platform):
                 output.append(f"  - '{rule.value}'")
             return output
         for rule in ruleset.rules:
-            rule_type = type_mapping.get(rule.type)
-            if not rule_type:
-                continue
+            rule_type = type_mapping[rule.type]
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
             output.append(f"  - {rule_line}")
         return output
     if target_platform == "Surge":
         output = []
         for rule in ruleset.rules:
-            rule_type = type_mapping.get(rule.type)
-            if not rule_type:
-                continue
+            rule_type = type_mapping[rule.type]
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
             output.append(rule_line)
         return output
