@@ -11,8 +11,6 @@ from pathlib import Path
 
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
-EXCLUDE_RULE_TYPE = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
-
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
         "Egern": "domain_set",
@@ -97,7 +95,7 @@ class Rule:
     value: str = ""
     param: str = ""
 
-# 规则数据结构
+# 规则集数据结构
 @dataclasses.dataclass(slots=True)
 class RuleSet:
     name: str
@@ -107,35 +105,44 @@ class RuleSet:
         return len(self.rules)
 
 # 处理规则类型
-def process_type(rule):
-    if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
-        return rule
-    try:
-        rule_cidr = ipaddress.ip_network(rule.type, strict=False)
-        rule.value = str(rule_cidr)
-        rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
-    except ValueError:
-        rule.value = rule.type.lstrip(".")
-        rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
-    return rule
+def apply_type(rules):
+    for rule in rules:
+        if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
+            continue
+        try:
+            rule_cidr = ipaddress.ip_network(rule.type, strict=False)
+            rule.value = str(rule_cidr)
+            rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
+        except ValueError:
+            rule.value = rule.type.lstrip(".")
+            rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
+    return rules
+
+# 排除规则类型
+def apply_exclude(rules):
+    exclude = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
+    rules = [rule for rule in rules if rule.type not in exclude]
+    return rules
 
 # 处理规则参数
-def process_param(rule):
-    if rule.type in {"IP-CIDR", "IP-CIDR6"}:
-        rule.param = "no-resolve"
-    return rule
+def apply_param(rules):
+    for rule in rules:
+        if rule.type in {"IP-CIDR", "IP-CIDR6"}:
+            rule.param = "no-resolve"
+    return rules
 
 # 处理规则顺序
-def process_order(rules):
+def apply_order(rules):
     rule_dedup = {}
     for rule in rules:
         rule_dedup.setdefault((rule.type, rule.value.lower()), rule)
     type_order = {}
     for rule_type in RULE_TYPE_MAPPING:
         type_order[rule_type] = len(type_order)
-    return sorted(
+    rules = sorted(
         rule_dedup.values(),
         key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
+    return rules
 
 # 读取规则内容
 def read_content(file_path, source_platform):
@@ -149,18 +156,6 @@ def read_content(file_path, source_platform):
                 if line:
                     content.append(line)
     return content
-
-# 写入规则内容
-def write_content(file_path, ruleset, content, target_platform):
-    with file_path.open("w", encoding="utf-8", newline="\n") as file:
-        if target_platform == "Singbox":
-            json.dump(content, file, indent=2, ensure_ascii=False)
-            file.write("\n")
-        else:
-            file.write(f"# 规则名称: {ruleset.name}\n")
-            file.write(f"# 规则统计: {ruleset.total}\n\n")
-            file.writelines(f"{line}\n" for line in content)
-    print(f"Processed ({target_platform}): {file_path}")
 
 # 解析规则内容
 def resolve_rule(file_path, source_platform):
@@ -229,23 +224,26 @@ def resolve_rule(file_path, source_platform):
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 
-# 转换规则
-def convert_rule(ruleset, target_platform, args):
-    rules = []
-    for rule in ruleset.rules:
-        process_type(rule)
-        if args.param:
-            process_param(rule)
-        if args.exclude and rule.type in EXCLUDE_RULE_TYPE:
-            continue
-        rules.append(rule)
+# 处理规则集
+def process_ruleset(ruleset, args):
+    ruleset.rules = apply_type(ruleset.rules)
+    if args.exclude:
+        ruleset.rules = apply_exclude(ruleset.rules)
+    if args.param:
+        ruleset.rules = apply_param(ruleset.rules)
     if args.order:
-        rules = process_order(rules)
-    ruleset.rules = rules
+        ruleset.rules = apply_order(ruleset.rules)
+
+# 转换规则内容
+def convert_rule(ruleset, target_platform):
+    type_mapping = {}
+    for rule_type, platforms in RULE_TYPE_MAPPING.items():
+        if platform_type := platforms.get(target_platform):
+            type_mapping[rule_type] = platform_type
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            rule_type = type_mapping.get(rule.type)
             if not rule_type:
                 continue
             rule_value = f"'{rule.value}'" if rule.type in EGERN_QUOTED_TYPE else rule.value
@@ -260,7 +258,7 @@ def convert_rule(ruleset, target_platform, args):
     if target_platform == "QuantumultX":
         output = []
         for rule in ruleset.rules:
-            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            rule_type = type_mapping.get(rule.type)
             if not rule_type:
                 continue
             output.append(f"{rule_type},{rule.value},{ruleset.name}")
@@ -268,7 +266,7 @@ def convert_rule(ruleset, target_platform, args):
     if target_platform == "Singbox":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            rule_type = type_mapping.get(rule.type)
             if not rule_type:
                 continue
             rule_dict[rule_type].append(rule.value)
@@ -286,7 +284,7 @@ def convert_rule(ruleset, target_platform, args):
                 output.append(f"  - '{rule.value}'")
             return output
         for rule in ruleset.rules:
-            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            rule_type = type_mapping.get(rule.type)
             if not rule_type:
                 continue
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
@@ -295,7 +293,7 @@ def convert_rule(ruleset, target_platform, args):
     if target_platform == "Surge":
         output = []
         for rule in ruleset.rules:
-            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            rule_type = type_mapping.get(rule.type)
             if not rule_type:
                 continue
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
@@ -303,6 +301,19 @@ def convert_rule(ruleset, target_platform, args):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 
+# 写入规则内容
+def write_content(file_path, ruleset, content, target_platform):
+    with file_path.open("w", encoding="utf-8", newline="\n") as file:
+        if target_platform == "Singbox":
+            json.dump(content, file, indent=2, ensure_ascii=False)
+            file.write("\n")
+        else:
+            file.write(f"# 规则名称: {ruleset.name}\n")
+            file.write(f"# 规则统计: {ruleset.total}\n\n")
+            file.writelines(f"{line}\n" for line in content)
+    print(f"Processed ({target_platform}): {file_path}")
+
+# 收集规则文件
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -331,7 +342,8 @@ def process_files(file_paths, args):
     for file in files:
         try:
             ruleset = resolve_rule(file, args.source_platform)
-            content = convert_rule(ruleset, args.target_platform, args)
+            process_ruleset(ruleset, args)
+            content = convert_rule(ruleset, args.target_platform)
             write_content(file, ruleset, content, args.target_platform)
         except Exception as error:
             failed_files.append(file)
