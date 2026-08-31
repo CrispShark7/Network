@@ -94,7 +94,7 @@ RULE_TYPE_MAPPING = {
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
-    value: str
+    value: str = ""
     param: str = ""
 
 # 规则数据结构
@@ -151,7 +151,7 @@ def read_content(file_path, source_platform):
     return content
 
 # 写入规则内容
-def write_ruleset(file_path, ruleset, content, target_platform):
+def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
         if target_platform == "Singbox":
             json.dump(content, file, indent=2, ensure_ascii=False)
@@ -162,7 +162,7 @@ def write_ruleset(file_path, ruleset, content, target_platform):
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
 
-# 解析来源规则
+# 解析规则内容
 def resolve_rule(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
@@ -170,30 +170,31 @@ def resolve_rule(file_path, source_platform):
         if platform_type := platforms.get(source_platform):
             type_mapping[platform_type] = rule_type
     if source_platform == "Egern":
-        rules, rule_type = [], ""
+        rules, rule_type, rule_param = [], "", ""
         for line in content:
             if line == "no_resolve: true":
+                rule_param = "no-resolve"
                 continue
             if line.endswith(":"):
                 platform_type = line[:-1]
                 rule_type = type_mapping.get(platform_type, platform_type)
                 continue
             if line.startswith("- "):
-                rule_value = line[2:].strip("'\"")
-                rules.append(Rule(rule_type, rule_value))
+                rule = Rule(rule_type, line[2:].strip("'\""))
+                if rule.type in {"IP-CIDR", "IP-CIDR6"}:
+                    rule.param = rule_param
+                rules.append(rule)
         return RuleSet(file_path.stem, rules)
-
     if source_platform == "QuantumultX":
         rules = []
         for line in content:
-            rule = Rule(*map(str.strip, (line.split(",", 2) + [""])[:2]))
+            rule = Rule(*map(str.strip, line.split(",", 2)[:2]))
             rule.type = type_mapping.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
-
     if source_platform == "Singbox":
         rules = []
-        for rule_group in content.get("rules", []):
+        for rule_group in content["rules"]:
             for platform_type, rule_values in rule_group.items():
                 rule_type = type_mapping.get(platform_type, platform_type)
                 for rule_value in rule_values:
@@ -204,11 +205,10 @@ def resolve_rule(file_path, source_platform):
                         rule.value = str(rule_cidr)
                     rules.append(rule)
         return RuleSet(file_path.stem, rules)
-
     if source_platform == "Stash":
         rules = []
         for line in content:
-            if line == "payload:" or not line.startswith("- "):
+            if not line.startswith("- "):
                 continue
             rule_line = line[2:].strip("'\"")
             if "," not in rule_line:
@@ -216,16 +216,155 @@ def resolve_rule(file_path, source_platform):
                     rule_line = rule_line[1:]
                 rules.append(Rule(rule_line))
                 continue
-            rule = Rule(*map(str.strip, (rule_line.split(",", 2) + ["", ""])[:3]))
+            rule = Rule(*map(str.strip, rule_line.split(",", 2)))
             rule.type = type_mapping.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
-
     if source_platform == "Surge":
         rules = []
         for line in content:
-            rule = Rule(*map(str.strip, (line.split(",", 2) + ["", ""])[:3]))
+            rule = Rule(*map(str.strip, line.split(",", 2)))
             rule.type = type_mapping.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
+    raise ValueError(f"Unknown Source Platform: {source_platform}")
 
+# 转换规则
+def convert_rule(ruleset, target_platform, args):
+    rules = []
+    for rule in ruleset.rules:
+        process_type(rule)
+        if args.param:
+            process_param(rule)
+        if args.exclude and rule.type in EXCLUDE_RULE_TYPE:
+            continue
+        rules.append(rule)
+    if args.order:
+        rules = process_order(rules)
+    ruleset.rules = rules
+    if target_platform == "Egern":
+        rule_dict = defaultdict(list)
+        for rule in ruleset.rules:
+            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            if not rule_type:
+                continue
+            rule_value = f"'{rule.value}'" if rule.type in EGERN_QUOTED_TYPE else rule.value
+            rule_dict[rule_type].append(rule_value)
+        output = []
+        if any(rule.param == "no-resolve" for rule in ruleset.rules):
+            output.append("no_resolve: true")
+        for rule_type, rule_values in rule_dict.items():
+            output.append(f"{rule_type}:")
+            output.extend(f"  - {rule_value}" for rule_value in rule_values)
+        return output
+    if target_platform == "QuantumultX":
+        output = []
+        for rule in ruleset.rules:
+            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            if not rule_type:
+                continue
+            output.append(f"{rule_type},{rule.value},{ruleset.name}")
+        return output
+    if target_platform == "Singbox":
+        rule_dict = defaultdict(list)
+        for rule in ruleset.rules:
+            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            if not rule_type:
+                continue
+            rule_dict[rule_type].append(rule.value)
+        output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
+        return output
+    if target_platform == "Stash":
+        output, ruleset_types = ["payload:"], {rule.type for rule in ruleset.rules}
+        if ruleset.total >= 5000 and ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
+            for rule in ruleset.rules:
+                rule_value = f"+.{rule.value}" if rule.type == "DOMAIN-SUFFIX" else rule.value
+                output.append(f"  - '{rule_value}'")
+            return output
+        if ruleset.total >= 5000 and ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
+            for rule in ruleset.rules:
+                output.append(f"  - '{rule.value}'")
+            return output
+        for rule in ruleset.rules:
+            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            if not rule_type:
+                continue
+            rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
+            output.append(f"  - {rule_line}")
+        return output
+    if target_platform == "Surge":
+        output = []
+        for rule in ruleset.rules:
+            rule_type = RULE_TYPE_MAPPING.get(rule.type, {}).get(target_platform)
+            if not rule_type:
+                continue
+            rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
+            output.append(rule_line)
+        return output
+    raise ValueError(f"Unknown Target Platform: {target_platform}")
+
+def collect_files(file_paths, source_platform):
+    file_list = []
+    for path in file_paths:
+        if not path.exists():
+            raise FileNotFoundError(f"{path} Not Found.")
+        if not path.is_file() and not path.is_dir():
+            raise ValueError(f"{path} Unknown Type.")
+        file_source = [path] if path.is_file() else path.iterdir()
+        for file in file_source:
+            if not file.is_file():
+                continue
+            if source_platform == "Singbox" and file.suffix.lower() != ".json":
+                continue
+            file_list.append(file)
+    if not file_list:
+        raise ValueError("No Supported File Found.")
+    return sorted(file_list)
+
+# 处理规则文件
+def process_files(file_paths, args):
+    files = collect_files(file_paths, args.source_platform)
+    failed_files = []
+    print(f"Source Platform: {args.source_platform}")
+    print(f"Target Platform: {args.target_platform}")
+    print(f"Collected {len(files)} file(s) from {len(file_paths)} path(s)")
+    for file in files:
+        try:
+            ruleset = resolve_rule(file, args.source_platform)
+            content = convert_rule(ruleset, args.target_platform, args)
+            write_content(file, ruleset, content, args.target_platform)
+        except Exception as error:
+            failed_files.append(file)
+            print(f"Failed to process {file}: {error}")
+    if failed_files:
+        raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
+    print("Processed Completed.")
+
+# 解析命令参数
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Rule Build")
+    platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
+    parser.add_argument("source_platform", choices=platforms)
+    parser.add_argument("target_platform", choices=platforms)
+    parser.add_argument("file_paths", type=Path, nargs="+")
+    parser.add_argument("--param", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--order", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
+    return parser.parse_args()
+
+def main():
+    try:
+        args = parse_arguments()
+        print("============== Build.py ==============")
+        print(f"来源规则平台: {args.source_platform}")
+        print(f"目标规则平台: {args.target_platform}")
+        print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
+        print(f"排序规则去重: {'已启用' if args.order else '未启用'}")
+        print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
+        print("======================================")
+        process_files(args.file_paths, args)
+    except Exception as error:
+        sys.exit(error)
+
+if __name__ == "__main__":
+    main()
