@@ -88,14 +88,14 @@ RULE_TYPE_MAPPING = {
     }
 }
 
-# 数据结构
+# 规则数据结构
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
     value: str = ""
     param: str = ""
 
-# 数据结构
+# 规则数据结构
 @dataclasses.dataclass(slots=True)
 class RuleSet:
     name: str
@@ -104,7 +104,7 @@ class RuleSet:
     def total(self):
         return len(self.rules)
 
-# 读取规则
+# 读取规则内容
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
@@ -117,7 +117,19 @@ def read_content(file_path, source_platform):
                     content.append(line)
     return content
 
-# 解析规则
+# 写入规则内容
+def write_content(file_path, ruleset, content, target_platform):
+    with file_path.open("w", encoding="utf-8", newline="\n") as file:
+        if target_platform == "Singbox":
+            json.dump(content, file, indent=2, ensure_ascii=False)
+            file.write("\n")
+        else:
+            file.write(f"# 规则名称: {ruleset.name}\n")
+            file.write(f"# 规则统计: {ruleset.total}\n\n")
+            file.writelines(f"{line}\n" for line in content)
+    print(f"Processed ({target_platform}): {file_path}")
+
+# 解析规则内容
 def resolve_rule(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
@@ -184,7 +196,7 @@ def resolve_rule(file_path, source_platform):
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 
-# 处理规则
+# 处理规则内容
 def process_ruleset(ruleset, args):
     def apply_type(rules):
         for rule in rules:
@@ -226,7 +238,7 @@ def process_ruleset(ruleset, args):
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
 
-# 转换规则
+# 转换规则内容
 def convert_rule(ruleset, target_platform):
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
@@ -293,19 +305,7 @@ def convert_rule(ruleset, target_platform):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 
-# 写入规则
-def write_content(file_path, ruleset, content, target_platform):
-    with file_path.open("w", encoding="utf-8", newline="\n") as file:
-        if target_platform == "Singbox":
-            json.dump(content, file, indent=2, ensure_ascii=False)
-            file.write("\n")
-        else:
-            file.write(f"# 规则名称: {ruleset.name}\n")
-            file.write(f"# 规则统计: {ruleset.total}\n\n")
-            file.writelines(f"{line}\n" for line in content)
-    print(f"Processed ({target_platform}): {file_path}")
-
-# 收集文件
+# 收集规则文件
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -324,7 +324,7 @@ def collect_files(file_paths, source_platform):
         raise ValueError("No Supported File Found.")
     return sorted(file_list)
 
-# 处理文件
+# 处理规则文件
 def process_files(file_paths, args):
     files = collect_files(file_paths, args.source_platform)
     failed_files = []
@@ -344,7 +344,7 @@ def process_files(file_paths, args):
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
 
-# 解析命令
+# 解析命令参数
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
