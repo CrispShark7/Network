@@ -88,14 +88,14 @@ RULE_TYPE_MAPPING = {
     }
 }
 
-# 规则数据结构
+# 数据结构
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
     value: str = ""
     param: str = ""
 
-# 规则集数据结构
+# 数据结构
 @dataclasses.dataclass(slots=True)
 class RuleSet:
     name: str
@@ -104,47 +104,7 @@ class RuleSet:
     def total(self):
         return len(self.rules)
 
-# 处理规则类型
-def apply_type(rules):
-    for rule in rules:
-        if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
-            continue
-        try:
-            rule_cidr = ipaddress.ip_network(rule.type, strict=False)
-            rule.value = str(rule_cidr)
-            rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
-        except ValueError:
-            rule.value = rule.type.lstrip(".")
-            rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
-    return rules
-
-# 排除规则类型
-def apply_exclude(rules):
-    exclude = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
-    rules = [rule for rule in rules if rule.type not in exclude]
-    return rules
-
-# 处理规则参数
-def apply_param(rules):
-    for rule in rules:
-        if rule.type in {"IP-CIDR", "IP-CIDR6"}:
-            rule.param = "no-resolve"
-    return rules
-
-# 处理规则顺序
-def apply_order(rules):
-    rule_dedup = {}
-    for rule in rules:
-        rule_dedup.setdefault((rule.type, rule.value.lower()), rule)
-    type_order = {}
-    for rule_type in RULE_TYPE_MAPPING:
-        type_order[rule_type] = len(type_order)
-    rules = sorted(
-        rule_dedup.values(),
-        key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
-    return rules
-
-# 读取规则内容
+# 读取规则
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
@@ -157,7 +117,7 @@ def read_content(file_path, source_platform):
                     content.append(line)
     return content
 
-# 解析规则内容
+# 解析规则
 def resolve_rule(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
@@ -224,8 +184,40 @@ def resolve_rule(file_path, source_platform):
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 
-# 处理规则集
+# 处理规则
 def process_ruleset(ruleset, args):
+    def apply_type(rules):
+        for rule in rules:
+            if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
+                continue
+            try:
+                rule_cidr = ipaddress.ip_network(rule.type, strict=False)
+                rule.value = str(rule_cidr)
+                rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
+            except ValueError:
+                rule.value = rule.type.lstrip(".")
+                rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
+        return rules
+    def apply_exclude(rules):
+        exclude = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
+        rules = [rule for rule in rules if rule.type not in exclude]
+        return rules
+    def apply_param(rules):
+        for rule in rules:
+            if rule.type in {"IP-CIDR", "IP-CIDR6"}:
+                rule.param = "no-resolve"
+        return rules
+    def apply_order(rules):
+        rule_dedup = {}
+        for rule in rules:
+            rule_dedup.setdefault((rule.type, rule.value.lower()), rule)
+        type_order = {}
+        for rule_type in RULE_TYPE_MAPPING:
+            type_order[rule_type] = len(type_order)
+        rules = sorted(
+            rule_dedup.values(),
+            key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.value))
+        return rules
     ruleset.rules = apply_type(ruleset.rules)
     if args.exclude:
         ruleset.rules = apply_exclude(ruleset.rules)
@@ -234,7 +226,7 @@ def process_ruleset(ruleset, args):
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
 
-# 转换规则内容
+# 转换规则
 def convert_rule(ruleset, target_platform):
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
@@ -301,7 +293,7 @@ def convert_rule(ruleset, target_platform):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 
-# 写入规则内容
+# 写入规则
 def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
         if target_platform == "Singbox":
@@ -313,7 +305,7 @@ def write_content(file_path, ruleset, content, target_platform):
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
 
-# 收集规则文件
+# 收集文件
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -332,7 +324,7 @@ def collect_files(file_paths, source_platform):
         raise ValueError("No Supported File Found.")
     return sorted(file_list)
 
-# 处理规则文件
+# 处理文件
 def process_files(file_paths, args):
     files = collect_files(file_paths, args.source_platform)
     failed_files = []
@@ -352,7 +344,7 @@ def process_files(file_paths, args):
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
 
-# 解析命令参数
+# 解析命令
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
@@ -364,6 +356,7 @@ def parse_arguments():
     parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 
+# 程序入口
 def main():
     try:
         args = parse_arguments()
