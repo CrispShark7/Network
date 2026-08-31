@@ -108,13 +108,12 @@ class RuleSet:
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
-            content = json.load(file)
-        else:
-            content = []
-            for line in file:
-                line = re.sub(r"(?<!:)//.*$|#.*$", "", line).strip()
-                if line:
-                    content.append(line)
+            return json.load(file)
+        content = []
+        for line in file:
+            line = re.sub(r"(?<!:)//.*$|#.*$", "", line).strip()
+            if line:
+                content.append(line)
     return content
 
 # 写入规则内容
@@ -148,7 +147,7 @@ def resolve_rule(file_path, source_platform):
                 continue
             if line.startswith("- "):
                 rule = Rule(rule_type, line[2:].strip("'\""))
-                if rule.type in {"IP-CIDR", "IP-CIDR6"}:
+                if rule_type in {"IP-CIDR", "IP-CIDR6"}:
                     rule.param = rule_param
                 rules.append(rule)
         return RuleSet(file_path.stem, rules)
@@ -167,7 +166,7 @@ def resolve_rule(file_path, source_platform):
                 for rule_value in rule_values:
                     rule = Rule(rule_type, rule_value)
                     if platform_type == "ip_cidr":
-                        rule_cidr = ipaddress.ip_network(rule.value, strict=False)
+                        rule_cidr = ipaddress.ip_network(rule_value, strict=False)
                         rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
                         rule.value = str(rule_cidr)
                     rules.append(rule)
