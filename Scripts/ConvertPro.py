@@ -88,14 +88,13 @@ RULE_TYPE_MAPPING = {
     }
 }
 
-# 规则数据结构
+# =====规则数据结构===== #
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
     value: str = ""
     param: str = ""
 
-# 规则数据结构
 @dataclasses.dataclass(slots=True)
 class RuleSet:
     name: str
@@ -104,7 +103,7 @@ class RuleSet:
     def total(self):
         return len(self.rules)
 
-# 读取规则内容
+# =====读写规则内容===== #
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
@@ -116,7 +115,6 @@ def read_content(file_path, source_platform):
                 content.append(line)
     return content
 
-# 写入规则内容
 def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
         if target_platform == "Singbox":
@@ -128,7 +126,7 @@ def write_content(file_path, ruleset, content, target_platform):
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
 
-# 解析规则内容
+# =====解析规则内容===== #
 def resolve_rule(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
@@ -195,7 +193,7 @@ def resolve_rule(file_path, source_platform):
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 
-# 处理规则内容
+# =====处理规则内容===== #
 def process_ruleset(ruleset, args):
     def apply_type(rules):
         for rule in rules:
@@ -237,7 +235,7 @@ def process_ruleset(ruleset, args):
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
 
-# 转换规则内容
+# =====转换规则内容===== #
 def convert_rule(ruleset, target_platform):
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
@@ -295,7 +293,7 @@ def convert_rule(ruleset, target_platform):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 
-# 收集规则文件
+# ======收集处理文件====== #
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -314,7 +312,6 @@ def collect_files(file_paths, source_platform):
         raise ValueError("No Supported File Found.")
     return sorted(file_list)
 
-# 处理规则文件
 def process_files(file_paths, args):
     files = collect_files(file_paths, args.source_platform)
     failed_files = []
@@ -334,28 +331,28 @@ def process_files(file_paths, args):
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
 
-# 解析命令参数
+# ======解析命令参数====== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
     parser.add_argument("source_platform", choices=platforms)
     parser.add_argument("target_platform", choices=platforms)
     parser.add_argument("file_paths", type=Path, nargs="+")
+    parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
     parser.add_argument("--param", action=argparse.BooleanOptionalAction)
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 
-# 程序入口
+# ======程序入口====== #
 def main():
     try:
         args = parse_arguments()
         print("============== Build.py ==============")
         print(f"来源规则平台: {args.source_platform}")
         print(f"目标规则平台: {args.target_platform}")
+        print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
         print(f"排序规则去重: {'已启用' if args.order else '未启用'}")
-        print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print("======================================")
         process_files(args.file_paths, args)
     except Exception as error:
