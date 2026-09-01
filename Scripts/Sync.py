@@ -168,7 +168,7 @@ def process_rule(source_path, repository):
             "DIRECT": ["DIRECT.list"],
             "Deezer": ["Deezer.list"],
             "Discord": ["Discord.list"],
-            "Discovery ": ["Discovery.list"],
+            "Discovery": ["Discovery.list"],
             "Disney": ["Disney.list"],
             "Docker": ["Docker.list"],
             "DouBan": ["DouBan.list"],
@@ -210,7 +210,7 @@ def process_rule(source_path, repository):
             "OneDrive": ["OneDrive.list"],
             "OpenAI": ["OpenAI.list"],
             "Oracle": ["Oracle.list"],
-            "PPVideo ": ["PPVideo.list"],
+            "PPVideo": ["PPVideo.list"],
             "PROXY": ["PROXY.list"],
             "PayPal": ["PayPal.list"],
             "PikPak": ["PikPak.list"],
@@ -236,7 +236,7 @@ def process_rule(source_path, repository):
             "Twitter": ["Twitter.list"],
             "Unbreak": ["Unbreak.list"],
             "Vercel": ["Vercel.list"],
-            "ViuTV ": ["ViuTV.list"],
+            "ViuTV": ["ViuTV.list"],
             "WeChat": ["WeChat.list"],
             "WeiBo": ["WeiBo.list"],
             "WhatsApp": ["WhatsApp.list"],
@@ -277,7 +277,7 @@ def process_repo(mode, repo=None):
         raise ValueError(f"Unknown Mode: {mode}")
     repository = resolve_repo(repo)
     if mode == "download":
-        source_path = RULESET_BASE_URL
+        source_path = RULESET_SOURCE_URL
     elif repository == "Network":
         source_path = "Ruleset"
     else:
