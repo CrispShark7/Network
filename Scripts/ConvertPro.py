@@ -174,13 +174,13 @@ def resolve_rule(file_path, source_platform):
         for line in content:
             if not line.startswith("- "):
                 continue
-            rule_line = line[2:].strip("'\"")
-            if "," not in rule_line:
-                if rule_line.startswith(("+.", "*.")):
-                    rule_line = rule_line[1:]
-                rules.append(Rule(rule_line))
+            line = line[2:].strip("'\"")
+            if "," not in line:
+                if line.startswith(("+.", "*.")):
+                    line = line[1:]
+                rules.append(Rule(line))
                 continue
-            rule = Rule(*map(str.strip, rule_line.split(",", 2)))
+            rule = Rule(*map(str.strip, line.split(",", 2)))
             rule.type = type_mapping.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
