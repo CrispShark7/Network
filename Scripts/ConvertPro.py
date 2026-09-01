@@ -9,6 +9,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
+
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
 RULE_TYPE_MAPPING = {
@@ -110,7 +112,7 @@ def read_content(file_path, source_platform):
             return json.load(file)
         content = []
         for line in file:
-            line = re.sub(r"(?<!:)//.*$|#.*$", "", line).strip()
+            line = COMMENT_PATTERN.sub("", line).strip()
             if line:
                 content.append(line)
     return content
@@ -127,7 +129,7 @@ def write_content(file_path, ruleset, content, target_platform):
     print(f"Processed ({target_platform}): {file_path}")
 
 # =====解析规则内容===== #
-def resolve_rule(file_path, source_platform):
+def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
@@ -194,7 +196,7 @@ def resolve_rule(file_path, source_platform):
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 
 # =====处理规则内容===== #
-def process_ruleset(ruleset, args):
+def process_rules(ruleset, args):
     def apply_type(rules):
         for rule in rules:
             if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
@@ -236,7 +238,7 @@ def process_ruleset(ruleset, args):
         ruleset.rules = apply_order(ruleset.rules)
 
 # =====转换规则内容===== #
-def convert_rule(ruleset, target_platform):
+def convert_rules(ruleset, target_platform):
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
         if platform_type := platforms.get(target_platform):
@@ -293,7 +295,7 @@ def convert_rule(ruleset, target_platform):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 
-# ======收集处理文件====== #
+# =====收集处理文件===== #
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -320,9 +322,9 @@ def process_files(file_paths, args):
     print(f"Collected {len(files)} file(s) from {len(file_paths)} path(s)")
     for file in files:
         try:
-            ruleset = resolve_rule(file, args.source_platform)
-            process_ruleset(ruleset, args)
-            content = convert_rule(ruleset, args.target_platform)
+            ruleset = resolve_rules(file, args.source_platform)
+            process_rules(ruleset, args)
+            content = convert_rules(ruleset, args.target_platform)
             write_content(file, ruleset, content, args.target_platform)
         except Exception as error:
             failed_files.append(file)
@@ -331,7 +333,7 @@ def process_files(file_paths, args):
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
 
-# ======解析命令参数====== #
+# =====解析命令参数===== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
@@ -343,7 +345,7 @@ def parse_arguments():
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 
-# ======程序入口====== #
+# =====程序入口===== #
 def main():
     try:
         args = parse_arguments()
@@ -352,7 +354,7 @@ def main():
         print(f"目标规则平台: {args.target_platform}")
         print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
-        print(f"排序规则去重: {'已启用' if args.order else '未启用'}")
+        print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
         print("======================================")
         process_files(args.file_paths, args)
     except Exception as error:
