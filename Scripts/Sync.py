@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 RULESET_SOURCE_URL = "https://raw.githubusercontent.com/Centralmatrix3/Network/master/Ruleset"
-
+# ==================== #
 @functools.cache
 def read_rule(source):
     if urlsplit(source).scheme in {"http", "https"}:
@@ -29,7 +29,7 @@ def write_rule(target_file, source_file):
     target_path.parent.mkdir(parents=True, exist_ok=True)
     with target_path.open("w", encoding="utf-8", newline="\n") as output:
         output.write("\n".join(source_rule_content) + "\n")
-
+# ==================== #
 def resolve_path(source_path, source_rule):
     source_path = source_path.rstrip("/")
     return [f"{source_path}/{file}" for file in source_rule]
@@ -40,7 +40,7 @@ def resolve_repo(repo_arg):
     if env_repo := os.environ.get("GITHUB_REPOSITORY", "").strip():
         return env_repo.rsplit("/", 1)[-1]
     raise ValueError("No Repository Specified")
-
+# ==================== #
 def process_rule(source_path, repository):
     print(f"Execute in {repository} Repository")
     if repository == "Network":
@@ -271,7 +271,7 @@ def process_rule(source_path, repository):
             target_file = f"Ruleset/{platform}/{target_rule}.{config['extension']}"
             write_rule(target_file, source_file)
     print(f"{repository} Repository: All Ruleset Processed!")
-
+# ==================== #
 def process_repo(mode, repo=None):
     if mode not in {"download", "copy"}:
         raise ValueError(f"Unknown Mode: {mode}")
@@ -283,7 +283,7 @@ def process_repo(mode, repo=None):
     else:
         source_path = "Network/Ruleset"
     process_rule(source_path, repository)
-
+# ==================== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     parser.add_argument("repo", nargs="?")
@@ -291,7 +291,7 @@ def parse_arguments():
     group.add_argument("--download", dest="mode", action="store_const", const="download")
     group.add_argument("--copy", dest="mode", action="store_const", const="copy")
     return parser.parse_args()
-
+# ==================== #
 def main():
     try:
         args = parse_arguments()
