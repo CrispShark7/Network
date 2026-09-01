@@ -12,6 +12,7 @@ from pathlib import Path
 COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
 
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
+
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
         "Egern": "domain_set",
