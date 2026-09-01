@@ -12,7 +12,6 @@ from pathlib import Path
 COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
 
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
-
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
         "Egern": "domain_set",
@@ -89,8 +88,7 @@ RULE_TYPE_MAPPING = {
         "Surge": "PROCESS-NAME"
     }
 }
-
-# =====规则数据结构===== #
+# ==================== #
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
@@ -104,8 +102,7 @@ class RuleSet:
     @property
     def total(self):
         return len(self.rules)
-
-# =====读写规则内容===== #
+# ==================== #
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
@@ -127,8 +124,7 @@ def write_content(file_path, ruleset, content, target_platform):
             file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
-
-# =====解析规则内容===== #
+# ==================== #
 def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = {}
@@ -194,8 +190,7 @@ def resolve_rules(file_path, source_platform):
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
-
-# =====处理规则内容===== #
+# ==================== #
 def process_rules(ruleset, args):
     def apply_type(rules):
         for rule in rules:
@@ -236,8 +231,7 @@ def process_rules(ruleset, args):
         ruleset.rules = apply_param(ruleset.rules)
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
-
-# =====转换规则内容===== #
+# ==================== #
 def convert_rules(ruleset, target_platform):
     type_mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
@@ -294,8 +288,7 @@ def convert_rules(ruleset, target_platform):
             output.append(rule_line)
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
-
-# =====收集处理文件===== #
+# ==================== #
 def collect_files(file_paths, source_platform):
     file_list = []
     for path in file_paths:
@@ -332,8 +325,7 @@ def process_files(file_paths, args):
     if failed_files:
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
-
-# =====解析命令参数===== #
+# ==================== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
@@ -344,8 +336,7 @@ def parse_arguments():
     parser.add_argument("--param", action=argparse.BooleanOptionalAction)
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
-
-# =====程序入口===== #
+# ==================== #
 def main():
     try:
         args = parse_arguments()
