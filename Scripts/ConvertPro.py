@@ -90,6 +90,8 @@ RULE_TYPE_MAPPING = {
     }
 }
 # ==================== #
+# 规则/规则集数据结构
+# ==================== #
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
@@ -103,6 +105,8 @@ class RuleSet:
     @property
     def total(self):
         return len(self.rules)
+# ==================== #
+# 读取/写入规则内容
 # ==================== #
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
@@ -120,6 +124,8 @@ def write_content(file_path, ruleset, content, target_platform):
             file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
+# ==================== #
+# 解析规则内容
 # ==================== #
 def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
@@ -186,6 +192,8 @@ def resolve_rules(file_path, source_platform):
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
 # ==================== #
+# 处理规则内容
+# ==================== #
 def process_rules(ruleset, args):
     def apply_type(rules):
         for rule in rules:
@@ -226,6 +234,8 @@ def process_rules(ruleset, args):
         ruleset.rules = apply_param(ruleset.rules)
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
+# ==================== #
+# 转换规则内容
 # ==================== #
 def convert_rules(ruleset, target_platform):
     type_mapping = {}
@@ -286,6 +296,8 @@ def convert_rules(ruleset, target_platform):
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 # ==================== #
+# 收集/处理规则文件
+# ==================== #
 def collect_files(file_paths, source_platform, target_platform):
     json_only = "Singbox" in {source_platform, target_platform}
     file_list = []
@@ -325,6 +337,8 @@ def process_files(file_paths, args):
         raise RuntimeError(f"Processed Failed: {len(failed_files)} file(s).")
     print("Processed Completed.")
 # ==================== #
+# 解析命令参数
+# ==================== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
@@ -336,13 +350,14 @@ def parse_arguments():
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 # ==================== #
+# 程序入口
+# ==================== #
 def main():
     try:
         args = parse_arguments()
         print("============== Build.py ==============")
         print(f"来源规则平台: {args.source_platform}")
         print(f"目标规则平台: {args.target_platform}")
-        print("规则类型处理: 自动启用")
         print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
         print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
