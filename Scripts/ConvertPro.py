@@ -342,6 +342,7 @@ def main():
         print("============== Build.py ==============")
         print(f"来源规则平台: {args.source_platform}")
         print(f"目标规则平台: {args.target_platform}")
+        print("规则类型处理: 自动启用")
         print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
         print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
