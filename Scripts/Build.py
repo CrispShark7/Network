@@ -18,7 +18,7 @@ def parse_arguments():
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
     convert_parser.add_argument("source_platform", choices=platforms)
     convert_parser.add_argument("target_platform", choices=platforms)
-    convert_parser.add_argument("file_paths", type=Path, nargs="+")
+    convert_parser.add_argument("file_path", type=Path, nargs="+")
     convert_parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
     convert_parser.add_argument("--param", action=argparse.BooleanOptionalAction)
     convert_parser.add_argument("--order", action=argparse.BooleanOptionalAction)
