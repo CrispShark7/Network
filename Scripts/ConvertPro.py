@@ -301,7 +301,7 @@ def convert_rules(ruleset, target_platform):
 def collect_files(file_path, source_platform, target_platform):
     json_only = "Singbox" in {source_platform, target_platform}
     file_list = []
-    for path in file_paths:
+    for path in file_path:
         if path.is_file():
             file_source = [path]
         elif path.is_dir():
@@ -323,7 +323,7 @@ def collect_files(file_path, source_platform, target_platform):
 def process_files(file_path, args):
     files = collect_files(file_path, args.source_platform, args.target_platform)
     failed_files = []
-    print(f"Collected {len(files)} file(s) from {len(file_paths)} path(s)")
+    print(f"Collected {len(files)} file(s) from {len(file_path)} path(s)")
     for file in files:
         try:
             ruleset = resolve_rules(file, args.source_platform)
@@ -344,7 +344,7 @@ def parse_arguments():
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
     parser.add_argument("source_platform", choices=platforms)
     parser.add_argument("target_platform", choices=platforms)
-    parser.add_argument("file_paths", type=Path, nargs="+")
+    parser.add_argument("file_path", type=Path, nargs="+")
     parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
     parser.add_argument("--param", action=argparse.BooleanOptionalAction)
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
@@ -362,7 +362,7 @@ def main():
         print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
         print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
         print("======================================")
-        process_files(args.file_paths, args)
+        process_files(args.file_path, args)
     except Exception as error:
         sys.exit(error)
 
