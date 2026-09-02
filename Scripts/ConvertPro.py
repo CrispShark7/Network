@@ -340,7 +340,7 @@ def process_files(file_path, args):
 # 解析命令参数
 # ==================== #
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Rule Build")
+    parser = argparse.ArgumentParser(description="Rule Build", fromfile_prefix_chars="@")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
     parser.add_argument("source_platform", choices=platforms)
     parser.add_argument("target_platform", choices=platforms)
