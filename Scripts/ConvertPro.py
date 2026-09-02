@@ -298,7 +298,7 @@ def convert_rules(ruleset, target_platform):
 # ==================== #
 # 收集/处理规则文件
 # ==================== #
-def collect_files(file_paths, source_platform, target_platform):
+def collect_files(file_path, source_platform, target_platform):
     json_only = "Singbox" in {source_platform, target_platform}
     file_list = []
     for path in file_paths:
@@ -320,8 +320,8 @@ def collect_files(file_paths, source_platform, target_platform):
         raise ValueError("No Supported File Found.")
     return sorted(file_list)
 
-def process_files(file_paths, args):
-    files = collect_files(file_paths, args.source_platform, args.target_platform)
+def process_files(file_path, args):
+    files = collect_files(file_path, args.source_platform, args.target_platform)
     failed_files = []
     print(f"Collected {len(files)} file(s) from {len(file_paths)} path(s)")
     for file in files:
