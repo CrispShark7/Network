@@ -116,7 +116,8 @@ def write_content(file_path, ruleset, content, target_platform):
             json.dump(content, file, indent=2, ensure_ascii=False)
             file.write("\n")
         else:
-            file.write(f"# 规则名称: {ruleset.name}\n# 规则统计: {ruleset.total}\n\n")
+            file.write(f"# 规则名称: {ruleset.name}\n")
+            file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
 # ==================== #
