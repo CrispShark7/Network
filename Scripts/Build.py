@@ -6,7 +6,7 @@ import Sync
 import ConvertPro
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Rule Build")
+    parser = argparse.ArgumentParser(description="Rule Build", fromfile_prefix_chars="@")
     subparsers = parser.add_subparsers(dest="command", required=True)
     sync_parser = subparsers.add_parser("S")
     sync_parser.add_argument("repo", nargs="?")
