@@ -10,6 +10,8 @@ from urllib.parse import urlsplit
 
 RULESET_SOURCE_URL = "https://raw.githubusercontent.com/Centralmatrix3/Network/master/Ruleset"
 # ==================== #
+# 读取/写入规则内容
+# ==================== #
 @functools.cache
 def read_rule(source):
     if urlsplit(source).scheme in {"http", "https"}:
@@ -18,17 +20,19 @@ def read_rule(source):
     return Path(source).read_text(encoding="utf-8").rstrip()
 
 def write_rule(target_file, source_file):
-    source_rule_content = []
+    source_contents = []
     for source in source_file:
         try:
-            source_rule_content.append(read_rule(source))
+            source_contents.append(read_rule(source))
             print(f"Processed: {source} -> {target_file}")
         except Exception as error:
             raise RuntimeError(f"Process Failed: {source} ({error})") from error
     target_path = Path(target_file)
     target_path.parent.mkdir(parents=True, exist_ok=True)
     with target_path.open("w", encoding="utf-8", newline="\n") as output:
-        output.write("\n".join(source_rule_content) + "\n")
+        output.write("\n".join(source_contents) + "\n")
+# ==================== #
+# 解析路径/仓库信息
 # ==================== #
 def resolve_path(source_path, source_rule):
     source_path = source_path.rstrip("/")
@@ -40,6 +44,8 @@ def resolve_repo(repo_arg):
     if env_repo := os.environ.get("GITHUB_REPOSITORY", "").strip():
         return env_repo.rsplit("/", 1)[-1]
     raise ValueError("No Repository Specified")
+# ==================== #
+# 构建仓库规则
 # ==================== #
 def process_rule(source_path, repository):
     print(f"Execute in {repository} Repository")
@@ -272,6 +278,8 @@ def process_rule(source_path, repository):
             write_rule(target_file, source_file)
     print(f"{repository} Repository: All Ruleset Processed!")
 # ==================== #
+# 处理仓库规则
+# ==================== #
 def process_repo(mode, repo=None):
     if mode not in {"download", "copy"}:
         raise ValueError(f"Unknown Mode: {mode}")
@@ -284,6 +292,8 @@ def process_repo(mode, repo=None):
         source_path = "Network/Ruleset"
     process_rule(source_path, repository)
 # ==================== #
+# 解析命令参数
+# ==================== #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build")
     parser.add_argument("repo", nargs="?")
@@ -291,6 +301,8 @@ def parse_arguments():
     group.add_argument("--download", dest="mode", action="store_const", const="download")
     group.add_argument("--copy", dest="mode", action="store_const", const="copy")
     return parser.parse_args()
+# ==================== #
+# 程序入口
 # ==================== #
 def main():
     try:
