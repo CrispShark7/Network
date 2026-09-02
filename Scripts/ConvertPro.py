@@ -108,12 +108,7 @@ def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
             return json.load(file)
-        content = []
-        for line in file:
-            line = COMMENT_PATTERN.sub("", line).strip()
-            if line:
-                content.append(line)
-    return content
+        return [line for raw in file if (line := COMMENT_PATTERN.sub("", raw).strip())]
 
 def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
@@ -121,8 +116,7 @@ def write_content(file_path, ruleset, content, target_platform):
             json.dump(content, file, indent=2, ensure_ascii=False)
             file.write("\n")
         else:
-            file.write(f"# 规则名称: {ruleset.name}\n")
-            file.write(f"# 规则统计: {ruleset.total}\n\n")
+            file.write(f"# 规则名称: {ruleset.name}\n# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
 # ==================== #
@@ -133,7 +127,8 @@ def resolve_rules(file_path, source_platform):
         if platform_type := platforms.get(source_platform):
             type_mapping[platform_type] = rule_type
     if source_platform == "Egern":
-        rules, rule_type, rule_param = [], "", ""
+        rules = []
+        rule_type = rule_param = ""
         for line in content:
             if line == "no_resolve: true":
                 rule_param = "no-resolve"
@@ -151,9 +146,8 @@ def resolve_rules(file_path, source_platform):
     if source_platform == "QuantumultX":
         rules = []
         for line in content:
-            rule = Rule(*map(str.strip, line.split(",", 2)[:2]))
-            rule.type = type_mapping.get(rule.type, rule.type)
-            rules.append(rule)
+            rule_type, rule_value = map(str.strip, line.split(",", 2)[:2])
+            rules.append(Rule(type_mapping.get(rule_type, rule_type), rule_value))
         return RuleSet(file_path.stem, rules)
     if source_platform == "Singbox":
         rules = []
@@ -161,12 +155,11 @@ def resolve_rules(file_path, source_platform):
             for platform_type, rule_values in rule_group.items():
                 rule_type = type_mapping.get(platform_type, platform_type)
                 for rule_value in rule_values:
-                    rule = Rule(rule_type, rule_value)
                     if platform_type == "ip_cidr":
                         rule_cidr = ipaddress.ip_network(rule_value, strict=False)
-                        rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
-                        rule.value = str(rule_cidr)
-                    rules.append(rule)
+                        rule_type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
+                        rule_value = str(rule_cidr)
+                    rules.append(Rule(rule_type, rule_value))
         return RuleSet(file_path.stem, rules)
     if source_platform == "Stash":
         rules = []
@@ -177,10 +170,10 @@ def resolve_rules(file_path, source_platform):
             if "," not in line:
                 if line.startswith(("+.", "*.")):
                     line = line[1:]
-                rules.append(Rule(line))
-                continue
-            rule = Rule(*map(str.strip, line.split(",", 2)))
-            rule.type = type_mapping.get(rule.type, rule.type)
+                rule = Rule(line)
+            else:
+                rule = Rule(*map(str.strip, line.split(",", 2)))
+                rule.type = type_mapping.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     if source_platform == "Surge":
@@ -266,13 +259,15 @@ def convert_rules(ruleset, target_platform):
         output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
         return output
     if target_platform == "Stash":
-        output, ruleset_types = ["payload:"], {rule.type for rule in ruleset.rules}
-        if ruleset.total >= 5000 and ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
+        output = ["payload:"]
+        large_ruleset = ruleset.total >= 5000
+        ruleset_types = {rule.type for rule in ruleset.rules}
+        if large_ruleset and ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
             for rule in ruleset.rules:
                 rule_value = f"+.{rule.value}" if rule.type == "DOMAIN-SUFFIX" else rule.value
                 output.append(f"  - '{rule_value}'")
             return output
-        if ruleset.total >= 5000 and ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
+        if large_ruleset and ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
             for rule in ruleset.rules:
                 output.append(f"  - '{rule.value}'")
             return output
@@ -291,18 +286,21 @@ def convert_rules(ruleset, target_platform):
     raise ValueError(f"Unknown Target Platform: {target_platform}")
 # ==================== #
 def collect_files(file_paths, source_platform, target_platform):
+    json_only = "Singbox" in {source_platform, target_platform}
     file_list = []
-    platform = "Singbox" in {source_platform, target_platform}
     for path in file_paths:
-        if not path.exists():
+        if path.is_file():
+            file_source = [path]
+        elif path.is_dir():
+            file_source = path.iterdir()
+        elif not path.exists():
             raise FileNotFoundError(f"{path} Not Found.")
-        if not path.is_file() and not path.is_dir():
+        else:
             raise ValueError(f"{path} Unknown Type.")
-        file_source = [path] if path.is_file() else path.iterdir()
         for file in file_source:
             if not file.is_file():
                 continue
-            if platform and file.suffix.lower() != ".json":
+            if json_only and file.suffix.lower() != ".json":
                 continue
             file_list.append(file)
     if not file_list:
@@ -312,8 +310,6 @@ def collect_files(file_paths, source_platform, target_platform):
 def process_files(file_paths, args):
     files = collect_files(file_paths, args.source_platform, args.target_platform)
     failed_files = []
-    print(f"Source Platform: {args.source_platform}")
-    print(f"Target Platform: {args.target_platform}")
     print(f"Collected {len(files)} file(s) from {len(file_paths)} path(s)")
     for file in files:
         try:
