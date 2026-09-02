@@ -40,7 +40,7 @@ def convert_mode(args):
     print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
     print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
     print("======================================")
-    ConvertPro.process_files(args.file_paths, args)
+    ConvertPro.process_files(args.file_path, args)
 
 def main():
     args = parse_arguments()
