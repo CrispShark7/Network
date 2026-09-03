@@ -135,7 +135,7 @@ def write_content(file_path, ruleset, content, target_platform):
 # 映射规则类型
 # ==================== #
 @functools.cache
-def mapping_types(platform, reverse=False):
+def resolve_mapping(platform, reverse=False):
     mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
         if platform_type := platforms.get(platform):
