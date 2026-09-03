@@ -111,21 +111,6 @@ class RuleSet:
 
 
 # ==================== #
-# 解析类型映射
-# ==================== #
-@functools.cache
-def resolve_mapping(platform, reverse=False):
-    mapping = {}
-    for rule_type, platforms in RULE_TYPE_MAPPING.items():
-        if platform_type := platforms.get(platform):
-            if reverse:
-                mapping[platform_type] = rule_type
-            else:
-                mapping[rule_type] = platform_type
-    return mapping
-
-
-# ==================== #
 # 读取写入规则
 # ==================== #
 def read_content(file_path, source_platform):
@@ -144,6 +129,21 @@ def write_content(file_path, ruleset, content, target_platform):
             file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
+
+
+# ==================== #
+# 映射规则类型
+# ==================== #
+@functools.cache
+def mapping_types(platform, reverse=False):
+    mapping = {}
+    for rule_type, platforms in RULE_TYPE_MAPPING.items():
+        if platform_type := platforms.get(platform):
+            if reverse:
+                mapping[platform_type] = rule_type
+            else:
+                mapping[rule_type] = platform_type
+    return mapping
 
 
 # ==================== #
@@ -333,7 +333,6 @@ def collect_files(file_path, source_platform, target_platform):
 
 
 def process_files(file_path, args):
-    files = collect_files(file_path, args.source_platform, args.target_platform)
     files = collect_files(file_path, args.source_platform, args.target_platform)
     param_files = {path.resolve() for path in args.param or []}
     noparam_files = {path.resolve() for path in args.noparam or []}
