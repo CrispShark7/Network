@@ -194,7 +194,7 @@ def resolve_rules(file_path, source_platform):
 # ==================== #
 # 处理规则内容
 # ==================== #
-def process_rules(ruleset, args):
+def process_rules(ruleset, args, enable_param, enable_noparam):
     def apply_type(rules):
         for rule in rules:
             if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
@@ -211,10 +211,10 @@ def process_rules(ruleset, args):
         exclude = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
         rules = [rule for rule in rules if rule.type not in exclude]
         return rules
-    def apply_param(rules):
+    def apply_param(rules, param):
         for rule in rules:
             if rule.type in {"IP-CIDR", "IP-CIDR6"}:
-                rule.param = "no-resolve"
+                rule.param = param
         return rules
     def apply_order(rules):
         rule_dedup = {}
@@ -230,8 +230,10 @@ def process_rules(ruleset, args):
     ruleset.rules = apply_type(ruleset.rules)
     if args.exclude:
         ruleset.rules = apply_exclude(ruleset.rules)
-    if args.param:
-        ruleset.rules = apply_param(ruleset.rules)
+    if enable_param:
+        ruleset.rules = apply_param(ruleset.rules, "no-resolve")
+    if enable_noparam:
+        ruleset.rules = apply_param(ruleset.rules, "")
     if args.order:
         ruleset.rules = apply_order(ruleset.rules)
 # ==================== #
@@ -322,12 +324,17 @@ def collect_files(file_path, source_platform, target_platform):
 
 def process_files(file_path, args):
     files = collect_files(file_path, args.source_platform, args.target_platform)
+    param_files = {path.resolve() for path in args.param or []}
+    noparam_files = {path.resolve() for path in args.noparam or []}
     failed_files = []
     print(f"Collected {len(files)} file(s) from {len(file_path)} path(s)")
     for file in files:
         try:
             ruleset = resolve_rules(file, args.source_platform)
-            process_rules(ruleset, args)
+            resolved_file = file.resolve()
+            enable_param = args.param is not None and resolved_file not in param_files
+            enable_noparam = args.noparam is not None and (not noparam_files or resolved_file in noparam_files)
+            process_rules(ruleset, args, enable_param, enable_noparam)
             content = convert_rules(ruleset, args.target_platform)
             write_content(file, ruleset, content, args.target_platform)
         except Exception as error:
@@ -346,7 +353,8 @@ def parse_arguments():
     parser.add_argument("target_platform", choices=platforms)
     parser.add_argument("file_path", type=Path, nargs="+")
     parser.add_argument("--exclude", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--param", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--param", type=Path, nargs="*")
+    parser.add_argument("--noparam", type=Path, nargs="*")
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
 # ==================== #
@@ -359,7 +367,8 @@ def main():
         print(f"来源规则平台: {args.source_platform}")
         print(f"目标规则平台: {args.target_platform}")
         print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
-        print(f"添加规则参数: {'已启用' if args.param else '未启用'}")
+        print(f"添加规则参数: {'已启用' if args.param is not None else '未启用'}")
+        print(f"移除规则参数: {'已启用' if args.no_param is not None else '未启用'}")
         print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
         print("======================================")
         process_files(args.file_path, args)
