@@ -1,4 +1,6 @@
+Ruleset/CNCIDR.list
 Ruleset/ChinaIP.list
 Ruleset/ChinaIPv4.list
 Ruleset/ChinaIPv6.list
 Ruleset/LAN.list
+Ruleset/USCIDR.list
