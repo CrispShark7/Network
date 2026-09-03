@@ -368,7 +368,7 @@ def main():
         print(f"目标规则平台: {args.target_platform}")
         print(f"排除规则类型: {'已启用' if args.exclude else '未启用'}")
         print(f"添加规则参数: {'已启用' if args.param is not None else '未启用'}")
-        print(f"移除规则参数: {'已启用' if args.no_param is not None else '未启用'}")
+        print(f"移除规则参数: {'已启用' if args.noparam is not None else '未启用'}")
         print(f"排序规则内容: {'已启用' if args.order else '未启用'}")
         print("======================================")
         process_files(args.file_path, args)
