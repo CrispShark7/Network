@@ -70,6 +70,7 @@ def process_rule(source_path, repository):
             "Ruleset/Amazon.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Amazon.list"],
             "Ruleset/AmazonIP.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/AmazonIp.list"],
             "Ruleset/Apple.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Apple.list"],
+            "Ruleset/AppleTV.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/AppleTV.list"],
             "Ruleset/BBC.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/BBCiPlayer.list"],
             "Ruleset/Baidu.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Baidu.list"],
             "Ruleset/BiliBili.list": ["https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Bilibili.list"],
