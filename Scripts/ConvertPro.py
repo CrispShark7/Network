@@ -10,9 +10,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
-
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
+
+COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
 
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
@@ -131,7 +131,7 @@ def write_content(file_path, ruleset, content, target_platform):
 # 解析类型映射
 # ============================== #
 @functools.cache
-def resolve_mapping(platform, reverse=False):
+def resolve_maps(platform, reverse=False):
     mapping = {}
     for rule_type, platforms in RULE_TYPE_MAPPING.items():
         if platform_type := platforms.get(platform):
@@ -145,7 +145,7 @@ def resolve_mapping(platform, reverse=False):
 # ============================== #
 def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
-    type_mapping = resolve_mapping(source_platform, reverse=True)
+    type_mapping = resolve_maps(source_platform, reverse=True)
     if source_platform == "Egern":
         rules = []
         for line in content:
@@ -241,7 +241,7 @@ def process_rules(ruleset, args, param=None):
 # 转换规则内容
 # ============================== #
 def convert_rules(ruleset, target_platform):
-    type_mapping = resolve_mapping(target_platform)
+    type_mapping = resolve_maps(target_platform)
     ruleset.rules = [rule for rule in ruleset.rules if rule.type in type_mapping]
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
@@ -298,7 +298,7 @@ def convert_rules(ruleset, target_platform):
 # 收集规则文件
 # ============================== #
 def collect_files(file_path, source_platform, target_platform):
-    files, json_only = [], "Singbox" in {source_platform, target_platform}
+    json_only, files = "Singbox" in {source_platform, target_platform}, []
     for path in file_path:
         if path.is_file():
             file_source = [path]
