@@ -90,11 +90,9 @@ RULE_TYPE_MAPPING = {
         "Surge": "PROCESS-NAME"
     }
 }
-
-
-# ==================== #
+# ========================= #
 # 规则数据结构
-# ==================== #
+# ========================= #
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
@@ -108,17 +106,17 @@ class RuleSet:
     @property
     def total(self):
         return len(self.rules)
-
-
-# ==================== #
-# 读取写入规则
-# ==================== #
+# ========================= #
+# 读取规则内容
+# ========================= #
 def read_content(file_path, source_platform):
     with file_path.open("r", encoding="utf-8") as file:
         if source_platform == "Singbox":
             return json.load(file)
         return [line for raw in file if (line := COMMENT_PATTERN.sub("", raw).strip())]
-
+# ========================= #
+# 写入规则内容
+# ========================= #
 def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
         if target_platform == "Singbox":
@@ -129,11 +127,9 @@ def write_content(file_path, ruleset, content, target_platform):
             file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
     print(f"Processed ({target_platform}): {file_path}")
-
-
-# ==================== #
-# 映射规则类型
-# ==================== #
+# ========================= #
+# 解析类型映射
+# ========================= #
 @functools.cache
 def resolve_mapping(platform, reverse=False):
     mapping = {}
@@ -144,11 +140,9 @@ def resolve_mapping(platform, reverse=False):
             else:
                 mapping[rule_type] = platform_type
     return mapping
-
-
-# ==================== #
+# ========================= #
 # 解析规则内容
-# ==================== #
+# ========================= #
 def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
     type_mapping = resolve_mapping(source_platform, reverse=True)
@@ -212,11 +206,9 @@ def resolve_rules(file_path, source_platform):
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
-
-
-# ==================== #
+# ========================= #
 # 处理规则内容
-# ==================== #
+# ========================= #
 def process_rules(ruleset, args, param=None):
     for rule in ruleset.rules:
         if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
@@ -245,11 +237,9 @@ def process_rules(ruleset, args, param=None):
         ruleset.rules = sorted(
             rule_dedup.values(),
             key=lambda rule: (type_order[rule.type], rule.value))
-
-
-# ==================== #
+# ========================= #
 # 转换规则内容
-# ==================== #
+# ========================= #
 def convert_rules(ruleset, target_platform):
     type_mapping = resolve_mapping(target_platform)
     ruleset.rules = [rule for rule in ruleset.rules if rule.type in type_mapping]
@@ -304,14 +294,11 @@ def convert_rules(ruleset, target_platform):
             output.append(rule_line)
         return output
     raise ValueError(f"Unknown Target Platform: {target_platform}")
-
-
-# ==================== #
-# 收集处理文件
-# ==================== #
+# ========================= #
+# 收集规则文件
+# ========================= #
 def collect_files(file_path, source_platform, target_platform):
-    json_only = "Singbox" in {source_platform, target_platform}
-    files = []
+    files, json_only = [], "Singbox" in {source_platform, target_platform}
     for path in file_path:
         if path.is_file():
             file_source = [path]
@@ -330,8 +317,9 @@ def collect_files(file_path, source_platform, target_platform):
     if not files:
         raise ValueError("No Supported File Found.")
     return sorted(files)
-
-
+# ========================= #
+# 处理规则文件
+# ========================= #
 def process_files(file_path, args):
     files = collect_files(file_path, args.source_platform, args.target_platform)
     param_files = {path.resolve() for path in args.param or []}
@@ -356,11 +344,9 @@ def process_files(file_path, args):
     if failed_count:
         raise RuntimeError(f"Processed Failed: {failed_count} file(s).")
     print("Processed Completed.")
-
-
-# ==================== #
+# ========================= #
 # 解析命令参数
-# ==================== #
+# ========================= #
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Rule Build", fromfile_prefix_chars="@")
     platforms = ["Egern", "QuantumultX", "Singbox", "Stash", "Surge"]
@@ -372,11 +358,9 @@ def parse_arguments():
     parser.add_argument("--noparam", type=Path, nargs="*")
     parser.add_argument("--order", action=argparse.BooleanOptionalAction)
     return parser.parse_args()
-
-
-# ==================== #
+# ========================= #
 # 程序入口
-# ==================== #
+# ========================= #
 def main():
     try:
         args = parse_arguments()
@@ -391,7 +375,6 @@ def main():
         process_files(args.file_path, args)
     except Exception as error:
         sys.exit(error)
-
 
 if __name__ == "__main__":
     main()
