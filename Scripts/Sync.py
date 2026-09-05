@@ -324,7 +324,7 @@ def main():
         print(f"使用下载规则: {'已启用' if args.mode == 'download' else '未启用'}")
         print(f"使用复制规则: {'已启用' if args.mode == 'copy' else '未启用'}")
         print("======================================")
-        sync_repo(args.mode, args.repo)
+        process_repo(args.mode, args.repo)
     except Exception as error:
         sys.exit(error)
 
