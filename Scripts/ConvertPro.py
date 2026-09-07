@@ -234,7 +234,7 @@ def process_rules(ruleset, args, param=None):
 
 def convert_rules(ruleset, target_platform):
     mapping_types = resolve_maps(target_platform)
-    ruleset.rules = [rule for rule in ruleset.rules if rule.type in types_mapping]
+    ruleset.rules = [rule for rule in ruleset.rules if rule.type in mapping_types]
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
