@@ -140,7 +140,7 @@ def resolve_maps(platform, reverse=False):
 
 def resolve_rules(file_path, source_platform):
     content = read_content(file_path, source_platform)
-    type_mapping = resolve_maps(source_platform, reverse=True)
+    mapping_types = resolve_maps(source_platform, reverse=True)
     if source_platform == "Egern":
         rules = []
         for line in content:
@@ -148,7 +148,7 @@ def resolve_rules(file_path, source_platform):
                 continue
             if line.endswith(":"):
                 platform_type = line[:-1]
-                rule_type = type_mapping.get(platform_type, platform_type)
+                rule_type = mapping_types.get(platform_type, platform_type)
                 continue
             if line.startswith("- "):
                 rule = Rule(rule_type, line[2:].strip("'\""))
@@ -161,7 +161,7 @@ def resolve_rules(file_path, source_platform):
         rules = []
         for line in content:
             rule_type, rule_value = map(str.strip, line.split(",", 2)[:2])
-            rule_type = type_mapping.get(rule_type, rule_type)
+            rule_type = mapping_types.get(rule_type, rule_type)
             rules.append(Rule(rule_type, rule_value))
         return RuleSet(file_path.stem, rules)
     if source_platform == "Singbox":
@@ -174,7 +174,7 @@ def resolve_rules(file_path, source_platform):
                         rule_type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
                         rules.append(Rule(rule_type, str(rule_cidr)))
                     continue
-                rule_type = type_mapping.get(platform_type, platform_type)
+                rule_type = mapping_types.get(platform_type, platform_type)
                 for rule_value in rule_values:
                     rules.append(Rule(rule_type, rule_value))
         return RuleSet(file_path.stem, rules)
@@ -190,14 +190,14 @@ def resolve_rules(file_path, source_platform):
                 rule = Rule(line)
             else:
                 rule = Rule(*map(str.strip, line.split(",", 2)))
-                rule.type = type_mapping.get(rule.type, rule.type)
+                rule.type = mapping_types.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     if source_platform == "Surge":
         rules = []
         for line in content:
             rule = Rule(*map(str.strip, line.split(",", 2)))
-            rule.type = type_mapping.get(rule.type, rule.type)
+            rule.type = mapping_types.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     raise ValueError(f"Unknown Source Platform: {source_platform}")
@@ -214,8 +214,8 @@ def process_rules(ruleset, args, param=None):
             rule.value = rule.type.lstrip(".")
             rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
     if args.exclude:
-        excluded_type = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
-        ruleset.rules = [rule for rule in ruleset.rules if rule.type not in excluded_type]
+        exclude_types = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
+        ruleset.rules = [rule for rule in ruleset.rules if rule.type not in exclude_types]
     if param is not None:
         for rule in ruleset.rules:
             if rule.type in {"IP-CIDR", "IP-CIDR6"}:
@@ -233,12 +233,12 @@ def process_rules(ruleset, args, param=None):
 
 
 def convert_rules(ruleset, target_platform):
-    types_mapping = resolve_maps(target_platform)
+    mapping_types = resolve_maps(target_platform)
     ruleset.rules = [rule for rule in ruleset.rules if rule.type in types_mapping]
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = types_mapping[rule.type]
+            rule_type = mapping_types[rule.type]
             rule_value = f"'{rule.value}'" if rule.type in EGERN_QUOTED_TYPE else rule.value
             rule_dict[rule_type].append(rule_value)
         output = []
@@ -251,14 +251,14 @@ def convert_rules(ruleset, target_platform):
     if target_platform == "QuantumultX":
         output = []
         for rule in ruleset.rules:
-            rule_type = types_mapping[rule.type]
+            rule_type = mapping_types[rule.type]
             rule_line = f"{rule_type},{rule.value},{ruleset.name}"
             output.append(rule_line)
         return output
     if target_platform == "Singbox":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = types_mapping[rule.type]
+            rule_type = mapping_types[rule.type]
             rule_dict[rule_type].append(rule.value)
         output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
         return output
@@ -274,14 +274,14 @@ def convert_rules(ruleset, target_platform):
             output.extend(f"  - '{rule.value}'" for rule in ruleset.rules)
             return output
         for rule in ruleset.rules:
-            rule_type = type_mapping[rule.type]
+            rule_type = mapping_types[rule.type]
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
             output.append(f"  - {rule_line}")
         return output
     if target_platform == "Surge":
         output = []
         for rule in ruleset.rules:
-            rule_type = type_mapping[rule.type]
+            rule_type = mapping_types[rule.type]
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
             output.append(rule_line)
         return output
