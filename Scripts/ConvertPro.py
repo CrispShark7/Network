@@ -208,15 +208,14 @@ def process_rules(ruleset, args, param=None):
         if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
             continue
         try:
-            rule_cidr = ipaddress.ip_network(rule.type, strict=False)
-            rule.value = str(rule_cidr)
-            rule.type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
+            rule.value = str(cidr := ipaddress.ip_network(rule.type, strict=False))
+            rule.type = "IP-CIDR6" if cidr.version == 6 else "IP-CIDR"
         except ValueError:
             rule.value = rule.type.lstrip(".")
             rule.type = "DOMAIN-SUFFIX" if rule.type.startswith(".") else "DOMAIN"
     if args.exclude:
-        excluded_types = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
-        ruleset.rules = [rule for rule in ruleset.rules if rule.type not in excluded_types]
+        excluded_type = {"USER-AGENT", "URL-REGEX", "PROTOCOL", "PROCESS-NAME"}
+        ruleset.rules = [rule for rule in ruleset.rules if rule.type not in excluded_type]
     if param is not None:
         for rule in ruleset.rules:
             if rule.type in {"IP-CIDR", "IP-CIDR6"}:
@@ -234,12 +233,12 @@ def process_rules(ruleset, args, param=None):
 
 
 def convert_rules(ruleset, target_platform):
-    type_mapping = resolve_maps(target_platform)
-    ruleset.rules = [rule for rule in ruleset.rules if rule.type in type_mapping]
+    types_mapping = resolve_maps(target_platform)
+    ruleset.rules = [rule for rule in ruleset.rules if rule.type in types_mapping]
     if target_platform == "Egern":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = type_mapping[rule.type]
+            rule_type = types_mapping[rule.type]
             rule_value = f"'{rule.value}'" if rule.type in EGERN_QUOTED_TYPE else rule.value
             rule_dict[rule_type].append(rule_value)
         output = []
@@ -252,28 +251,28 @@ def convert_rules(ruleset, target_platform):
     if target_platform == "QuantumultX":
         output = []
         for rule in ruleset.rules:
-            rule_type = type_mapping[rule.type]
-            output.append(f"{rule_type},{rule.value},{ruleset.name}")
+            rule_type = types_mapping[rule.type]
+            rule_line = f"{rule_type},{rule.value},{ruleset.name}"
+            output.append(rule_line)
         return output
     if target_platform == "Singbox":
         rule_dict = defaultdict(list)
         for rule in ruleset.rules:
-            rule_type = type_mapping[rule.type]
+            rule_type = types_mapping[rule.type]
             rule_dict[rule_type].append(rule.value)
         output = {"version": 3, "rules": [dict(rule_dict)] if rule_dict else []}
         return output
     if target_platform == "Stash":
         output = ["payload:"]
-        if ruleset.total >= 5000:
-            ruleset_types = {rule.type for rule in ruleset.rules}
-            if ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
-                for rule in ruleset.rules:
-                    rule_value = f"+.{rule.value}" if rule.type == "DOMAIN-SUFFIX" else rule.value
-                    output.append(f"  - '{rule_value}'")
-                return output
-            if ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
-                output.extend(f"  - '{rule.value}'" for rule in ruleset.rules)
-                return output
+        ruleset_types = {rule.type for rule in ruleset.rules}
+        if ruleset.total >= 5000 and ruleset_types <= {"DOMAIN", "DOMAIN-SUFFIX"}:
+            for rule in ruleset.rules:
+                rule_value = f"+.{rule.value}" if rule.type == "DOMAIN-SUFFIX" else rule.value
+                output.append(f"  - '{rule_value}'")
+            return output
+        if ruleset.total >= 5000 and ruleset_types <= {"IP-CIDR", "IP-CIDR6"}:
+            output.extend(f"  - '{rule.value}'" for rule in ruleset.rules)
+            return output
         for rule in ruleset.rules:
             rule_type = type_mapping[rule.type]
             rule_line = f"{rule_type},{rule.value}" + (f",{rule.param}" if rule.param else "")
