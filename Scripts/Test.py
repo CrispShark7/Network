@@ -139,70 +139,62 @@ def resolve_maps(platform, reverse=False):
 
 
 def resolve_rules(file_path, source_platform):
-    mapping_types = resolve_maps(source_platform, reverse=True)
     content_lines = read_content(file_path, source_platform)
+    mapping_types = resolve_maps(source_platform, reverse=True)
     if source_platform == "Egern":
-        rules = []
+        rule_dict = defaultdict(list)
         for line in content_lines:
-            if line.startswith("no_resolve:"):
-                continue
-
-            if line.endswith(":"):
-                platform_type = line[:-1]
-                rule_type = mapping_types.get(platform_type, platform_type)
+            if line.endswith("_set:"):
+                rule_type = line[:-1]
                 continue
             if line.startswith("- "):
-                rule = Rule(rule_type, line[2:].strip("'\""))
-                if rule_type in {"IP-CIDR", "IP-CIDR6"}:
-                    if content[0] == "no_resolve: true":
-                        rule.param = "no-resolve"
+                rule_value = line[2:].strip("'\"")
+                rule_dict[rule_type].append(rule_value)
+        rules = []
+        for rule_type, rule_values in rule_dict.items():
+            for rule_value in rule_values:
+                rule = Rule(rule_type, rule_value)
+                rule.type = mapping_types.get(rule.type, rule.type)
                 rules.append(rule)
+        if "no_resolve: true" in content_lines:
+            ip_rules = (rule for rule in rules if rule.type in {"IP-CIDR", "IP-CIDR6"})
+            for rule in ip_rules:
+                rule.param = "no-resolve"
         return RuleSet(file_path.stem, rules)
-
-
-
-
-
-
     if source_platform == "QuantumultX":
         rules = []
-        for line in content:
-            rule_type, rule_value = map(str.strip, line.split(",", 2)[:2])
-            rule_type = mapping_types.get(rule_type, rule_type)
-            rules.append(Rule(rule_type, rule_value))
+        for line in content_lines:
+            rule = Rule(*map(str.strip, line.split(",", 2)[:2]))
+            rule.type = mapping_types.get(rule.type, rule.type)
+            rules.append(rule)
         return RuleSet(file_path.stem, rules)
     if source_platform == "Singbox":
         rules = []
-        for rule_group in content["rules"]:
-            for platform_type, rule_values in rule_group.items():
-                if platform_type == "ip_cidr":
-                    for rule_value in rule_values:
-                        rule_cidr = ipaddress.ip_network(rule_value, strict=False)
-                        rule_type = "IP-CIDR6" if rule_cidr.version == 6 else "IP-CIDR"
-                        rules.append(Rule(rule_type, str(rule_cidr)))
-                    continue
-                rule_type = mapping_types.get(platform_type, platform_type)
-                for rule_value in rule_values:
-                    rules.append(Rule(rule_type, rule_value))
+        for rule_group in content_lines["rules"]:
+            for rule_type, rule_values in rule_group.items():
+                rules.extend(Rule(rule_type, rule_value) for rule_value in rule_values)
+        for rule in rules:
+            if rule.type == "ip_cidr":
+                rule.value = str(cidr := ipaddress.ip_network(rule.value, strict=False))
+                rule.type = "IP-CIDR6" if cidr.version == 6 else "IP-CIDR"
+                continue
+            rule.type = mapping_types.get(rule.type, rule.type)
         return RuleSet(file_path.stem, rules)
     if source_platform == "Stash":
         rules = []
-        for line in content:
+        for line in content_lines:
             if not line.startswith("- "):
                 continue
             line = line[2:].strip("'\"")
-            if "," not in line:
-                if line.startswith(("+.", "*.")):
-                    line = line[1:]
-                rule = Rule(line)
-            else:
-                rule = Rule(*map(str.strip, line.split(",", 2)))
-                rule.type = mapping_types.get(rule.type, rule.type)
+            if line.startswith(("+.", "*.")):
+                line = line[1:]
+            rule = Rule(*map(str.strip, line.split(",", 2)))
+            rule.type = mapping_types.get(rule.type, rule.type)
             rules.append(rule)
         return RuleSet(file_path.stem, rules)
     if source_platform == "Surge":
         rules = []
-        for line in content:
+        for line in content_lines:
             rule = Rule(*map(str.strip, line.split(",", 2)))
             rule.type = mapping_types.get(rule.type, rule.type)
             rules.append(rule)
@@ -212,7 +204,7 @@ def resolve_rules(file_path, source_platform):
 
 def process_rules(ruleset, args, param=None):
     for rule in ruleset.rules:
-        if rule.type.upper() in RULE_TYPE_MAPPING or rule.value:
+        if rule.value:
             continue
         try:
             rule.value = str(cidr := ipaddress.ip_network(rule.type, strict=False))
@@ -226,7 +218,7 @@ def process_rules(ruleset, args, param=None):
     if param is not None:
         for rule in ruleset.rules:
             if rule.type in {"IP-CIDR", "IP-CIDR6"}:
-                rule.param = param
+                rule.param = para
     if args.order:
         rule_dedup = {}
         for rule in ruleset.rules:
@@ -236,7 +228,7 @@ def process_rules(ruleset, args, param=None):
             type_order[rule_type] = index
         ruleset.rules = sorted(
             rule_dedup.values(),
-            key=lambda rule: (type_order[rule.type], rule.value))
+            key=lambda rule: (type_order.get(rule.type, len(type_order)), rule.type, rule.value))
 
 
 def convert_rules(ruleset, target_platform):
