@@ -218,7 +218,7 @@ def process_rules(ruleset, args, param=None):
     if param is not None:
         for rule in ruleset.rules:
             if rule.type in {"IP-CIDR", "IP-CIDR6"}:
-                rule.param = para
+                rule.param = param
     if args.order:
         rule_dedup = {}
         for rule in ruleset.rules:
