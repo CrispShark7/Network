@@ -142,20 +142,16 @@ def resolve_rules(file_path, source_platform):
     content_lines = read_content(file_path, source_platform)
     mapping_types = resolve_maps(source_platform, reverse=True)
     if source_platform == "Egern":
-        rule_dict = defaultdict(list)
+        rules = []
         for line in content_lines:
             if line.endswith("_set:"):
                 rule_type = line[:-1]
                 continue
             if line.startswith("- "):
                 rule_value = line[2:].strip("'\"")
-                rule_dict[rule_type].append(rule_value)
-        rules = []
-        for rule_type, rule_values in rule_dict.items():
-            for rule_value in rule_values:
-                rule = Rule(rule_type, rule_value)
-                rule.type = mapping_types.get(rule.type, rule.type)
-                rules.append(rule)
+                rules.append(Rule(rule_type, rule_value))
+        for rule in rules:
+            rule.type = mapping_types.get(rule.type, rule.type)
         if "no_resolve: true" in content_lines:
             ip_rules = (rule for rule in rules if rule.type in {"IP-CIDR", "IP-CIDR6"})
             for rule in ip_rules:
