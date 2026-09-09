@@ -149,9 +149,9 @@ def resolve_rules(file_path, source_platform):
                 continue
             if line.startswith("- "):
                 rule_value = line[2:].strip("'\"")
-                rules.append(Rule(rule_type, rule_value))
-        for rule in rules:
-            rule.type = mapping_types.get(rule.type, rule.type)
+                rule = Rule(rule_type, rule_value)
+                rule.type = mapping_types.get(rule.type, rule.type)
+                rules.append(rule)
         if "no_resolve: true" in content_lines:
             ip_rules = (rule for rule in rules if rule.type in {"IP-CIDR", "IP-CIDR6"})
             for rule in ip_rules:
