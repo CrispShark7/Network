@@ -12,8 +12,6 @@ from pathlib import Path
 
 EGERN_QUOTED_TYPE = {"DOMAIN-WILDCARD", "IP-ASN", "USER-AGENT", "URL-REGEX"}
 
-COMMENT_PATTERN = re.compile(r"(?<!:)//.*$|#.*$")
-
 RULE_TYPE_MAPPING = {
     "DOMAIN": {
         "Egern": "domain_set",
@@ -91,7 +89,6 @@ RULE_TYPE_MAPPING = {
     }
 }
 
-
 @dataclasses.dataclass(slots=True)
 class Rule:
     type: str
@@ -106,13 +103,14 @@ class RuleSet:
     def total(self):
         return len(self.rules)
 
-
 def read_content(file_path, source_platform):
-    with file_path.open("r", encoding="utf-8") as file:
+    with file_path.open("r", encoding="utf-8", newline=None) as file:
         if source_platform == "Singbox":
             return json.load(file)
-        return [line for raw in file if (line := COMMENT_PATTERN.sub("", raw).strip())]
-
+        else:
+            comment = re.compile(r"(?<!:)//.*$|#.*$")
+            content = [line for raw in file if (line := comment.sub("", raw).strip())]
+            return content
 
 def write_content(file_path, ruleset, content, target_platform):
     with file_path.open("w", encoding="utf-8", newline="\n") as file:
@@ -123,8 +121,6 @@ def write_content(file_path, ruleset, content, target_platform):
             file.write(f"# 规则名称: {ruleset.name}\n")
             file.write(f"# 规则统计: {ruleset.total}\n\n")
             file.writelines(f"{line}\n" for line in content)
-    print(f"Processed ({target_platform}): {file_path}")
-
 
 @functools.cache
 def resolve_maps(platform, reverse=False):
